@@ -1,6 +1,9 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const client = new OpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: "https://api.deepseek.com",
+});
 
 function formatCategories(categories) {
   const lines = [];
@@ -43,8 +46,8 @@ ${formatCategories(categories)}
 export async function classifyArticle(article, categories) {
   const prompt = buildPrompt(article, categories);
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+  const response = await client.chat.completions.create({
+    model: "deepseek-chat",
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
     temperature: 0.3,
@@ -53,7 +56,7 @@ export async function classifyArticle(article, categories) {
 
   const raw = response.choices[0].message.content;
   if (!raw) {
-    throw new Error("OpenAI returned null content (possible content filter trigger)");
+    throw new Error("DeepSeek returned null content (possible content filter trigger)");
   }
 
   let parsed;
@@ -69,7 +72,7 @@ export async function classifyArticle(article, categories) {
         throw new Error(`Failed to parse JSON from markdown block: ${match[1].trim().slice(0, 200)}`);
       }
     } else {
-      throw new Error(`Failed to parse OpenAI response as JSON: ${raw.slice(0, 200)}`);
+      throw new Error(`Failed to parse response as JSON: ${raw.slice(0, 200)}`);
     }
   }
 

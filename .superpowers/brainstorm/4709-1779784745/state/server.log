@@ -1,3 +1,4 @@
 {"type":"server-started","port":61049,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:61049","screen_dir":"/Users/kl/Projects/shenlun-tool/.superpowers/brainstorm/4709-1779784745/content","state_dir":"/Users/kl/Projects/shenlun-tool/.superpowers/brainstorm/4709-1779784745/state"}
 {"type":"screen-added","file":"/Users/kl/Projects/shenlun-tool/.superpowers/brainstorm/4709-1779784745/content/architecture.html"}
 {"type":"screen-added","file":"/Users/kl/Projects/shenlun-tool/.superpowers/brainstorm/4709-1779784745/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}
