@@ -1,7 +1,14 @@
 import { writeFile, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 
-const DOCS_ROOT = new URL("../docs", import.meta.url).pathname;
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DOCS_ROOT = join(__dirname, "..", "docs");
+
+function esc(val) {
+  return String(val).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
 
 function slugify(text) {
   return text.replace(/[\/\\?%*:|"<>]/g, "").slice(0, 60);
@@ -17,18 +24,18 @@ function formatDate(date) {
 
 function articleFrontmatter(article) {
   const lines = ["---"];
-  lines.push(`title: "${article.title.replace(/"/g, '\\"')}"`);
-  lines.push(`source: "${article.source}"`);
-  lines.push(`url: "${article.url}"`);
+  lines.push(`title: "${esc(article.title)}"`);
+  lines.push(`source: "${esc(article.source)}"`);
+  lines.push(`url: "${esc(article.url)}"`);
   lines.push(`date: ${article.pubDate.split("T")[0]}`);
-  lines.push(`category: "${article.category}"`);
+  lines.push(`category: "${esc(article.category)}"`);
   if (article.subcategory) {
-    lines.push(`subcategory: "${article.subcategory}"`);
+    lines.push(`subcategory: "${esc(article.subcategory)}"`);
   }
-  lines.push(`tags: [${article.tags.map((t) => `"${t}"`).join(", ")}]`);
+  lines.push(`tags: [${(article.tags || []).map((t) => `"${esc(t)}"`).join(", ")}]`);
   lines.push("quotes:");
-  for (const q of article.quotes) {
-    lines.push(`  - "${q.replace(/"/g, '\\"')}"`);
+  for (const q of article.quotes || []) {
+    lines.push(`  - "${esc(q)}"`);
   }
   lines.push("---");
   return lines.join("\n");
@@ -142,7 +149,7 @@ async function updateCategoryIndexes(classifiedArticles) {
   }
 }
 
-async function updateQuotesPage(classifiedArticles) {
+async function updateQuotesPage(classifiedArticles, targetDate) {
   const filepath = join(DOCS_ROOT, "quotes.md");
   let existing = "";
   try {
@@ -160,7 +167,7 @@ async function updateQuotesPage(classifiedArticles) {
   }
 
   if (newQuotes.length) {
-    const section = `\n## ${formatDate(new Date())}\n\n${newQuotes.join("\n")}\n`;
+    const section = `\n## ${formatDate(targetDate)}\n\n${newQuotes.join("\n")}\n`;
     await writeFile(filepath, existing.trimEnd() + section, "utf-8");
   }
 }
@@ -173,7 +180,7 @@ export async function generateMarkdown(classifiedArticles, targetDate = new Date
 
   await writeDailyDigest(classifiedArticles, targetDate);
   await updateCategoryIndexes(classifiedArticles);
-  await updateQuotesPage(classifiedArticles);
+  await updateQuotesPage(classifiedArticles, targetDate);
 
   // Build summary for push
   const byCategory = {};
