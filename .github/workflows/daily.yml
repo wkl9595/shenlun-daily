@@ -5,9 +5,15 @@ on:
     - cron: "0 1 * * *"  # UTC 1:00 = 北京时间 9:00
   workflow_dispatch:       # Manual trigger for testing
 
+concurrency:
+  group: daily-pipeline
+  cancel-in-progress: false
+
 jobs:
   daily:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 

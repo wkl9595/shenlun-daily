@@ -39,7 +39,7 @@ export async function fetchArticles(feeds) {
         if (fetchedUrls.has(url)) continue;
         if (!isWithinLast24Hours(item.pubDate)) continue;
 
-        const content = item.contentSnippet || item.content || item.summary || "";
+        const content = item.content || item.contentSnippet || item.summary || "";
         articles.push({
           title: item.title?.trim() || "",
           url,
