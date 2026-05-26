@@ -1,28 +1,23 @@
 {
   "feeds": [
     {
-      "name": "人民网-时政",
-      "url": "http://www.people.com.cn/rss/politics.xml",
+      "name": "人民网-观点",
+      "url": "http://opinion.people.com.cn/",
       "enabled": true
     },
     {
-      "name": "人民网-要闻",
-      "url": "http://www.people.com.cn/rss/ywkx.xml",
+      "name": "人民网-时政",
+      "url": "http://politics.people.com.cn/",
       "enabled": true
     },
     {
       "name": "新华网-时政",
-      "url": "http://www.xinhuanet.com/politics/news_politics.xml",
+      "url": "https://www.news.cn/politics/",
       "enabled": true
     },
     {
-      "name": "新华网-国内",
-      "url": "http://rss.xinhuanet.com/rss/native.xml",
-      "enabled": true
-    },
-    {
-      "name": "人民网-评论",
-      "url": "http://www.people.com.cn/rss/opinion.xml",
+      "name": "求是网",
+      "url": "http://www.qstheory.cn/",
       "enabled": true
     }
   ],
