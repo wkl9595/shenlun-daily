@@ -4,6 +4,7 @@ export default defineConfig({
   title: "申论素材库",
   description: "每日官方媒体文章分类与金句收录",
   lang: "zh-CN",
+  ignoreDeadLinks: true,
   cleanUrls: true,
 
   themeConfig: {
