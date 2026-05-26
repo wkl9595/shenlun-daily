@@ -1,6 +1,6 @@
+import "dotenv/config";
 import { readFile } from "node:fs/promises";
 import { execSync } from "node:child_process";
-import "dotenv/config";
 
 import { fetchArticles } from "./fetch.mjs";
 import { classifyArticles } from "./classify.mjs";
