@@ -172,6 +172,58 @@ async function updateQuotesPage(classifiedArticles, targetDate) {
   }
 }
 
+async function updateArticlesIndex(classifiedArticles) {
+  const filepath = join(DOCS_ROOT, "articles", "index.md");
+  let existing = "";
+  try {
+    existing = await readFile(filepath, "utf-8");
+  } catch {
+    existing = `# 文章浏览\n\n| 日期 | 文章 | 来源 | 分类 |\n|------|------|------|------|\n`;
+  }
+
+  const newEntries = classifiedArticles
+    .map((a) => {
+      const dateStr = a.pubDate.split("T")[0];
+      const path = a._filepath ? a._filepath.replace(DOCS_ROOT, "").replace(/\.md$/, "") : "";
+      return `| ${dateStr} | [${a.title}](${path}) | ${a.source} | ${a.category} |`;
+    })
+    .join("\n");
+
+  // Insert after the table header (after the separator line)
+  const lines = existing.split("\n");
+  const sepIdx = lines.findIndex((l) => l.startsWith("|------"));
+  if (sepIdx >= 0) {
+    lines.splice(sepIdx + 1, 0, newEntries);
+  } else {
+    lines.push(newEntries);
+  }
+  await mkdir(join(DOCS_ROOT, "articles"), { recursive: true });
+  await writeFile(filepath, lines.join("\n") + "\n", "utf-8");
+}
+
+async function updateDailyIndex(digestDate) {
+  const filepath = join(DOCS_ROOT, "daily", "index.md");
+  const dateStr = formatDate(digestDate);
+  let existing = "";
+  try {
+    existing = await readFile(filepath, "utf-8");
+  } catch {
+    existing = `# 每日摘要\n\n| 日期 | 摘要 |\n|------|------|\n`;
+  }
+
+  const entry = `| ${dateStr} | [每日摘要 — ${dateStr}](./${dateStr}) |`;
+  const lines = existing.split("\n");
+  const sepIdx = lines.findIndex((l) => l.startsWith("|------"));
+  if (sepIdx >= 0) {
+    // Insert after separator, before any existing entries
+    lines.splice(sepIdx + 1, 0, entry);
+  } else {
+    lines.push(entry);
+  }
+  await mkdir(join(DOCS_ROOT, "daily"), { recursive: true });
+  await writeFile(filepath, lines.join("\n") + "\n", "utf-8");
+}
+
 export async function generateMarkdown(classifiedArticles, targetDate = new Date()) {
   for (const article of classifiedArticles) {
     const filepath = await writeArticleFile(article);
@@ -179,8 +231,10 @@ export async function generateMarkdown(classifiedArticles, targetDate = new Date
   }
 
   await writeDailyDigest(classifiedArticles, targetDate);
+  await updateDailyIndex(targetDate);
   await updateCategoryIndexes(classifiedArticles);
   await updateQuotesPage(classifiedArticles, targetDate);
+  await updateArticlesIndex(classifiedArticles);
 
   // Build summary for push
   const byCategory = {};
