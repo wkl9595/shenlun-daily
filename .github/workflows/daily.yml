@@ -1,7 +1,31 @@
-name: Daily
-on: push
+name: Daily Shenlun Pipeline
+
+on:
+  push:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
 jobs:
-  test:
+  daily:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - run: echo hello
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run daily pipeline
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_TO: ${{ secrets.SMTP_TO }}
+          SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
+          CI: "true"
+        run: node scripts/daily.mjs
