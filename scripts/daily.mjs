@@ -43,9 +43,9 @@ async function main() {
   // Phase 4: Deliver
   console.log("\n--- Phase 4: Deliver ---");
 
-  // WeChat push
+  // Email push
   const siteUrl = process.env.SITE_BASE_URL || "";
-  await sendDailyDigest(summary, process.env.WECHAT_WEBHOOK_URL, siteUrl);
+  await sendDailyDigest(summary, siteUrl);
 
   // Git commit + push (in CI)
   if (process.env.CI) {

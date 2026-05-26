@@ -1,68 +1,52 @@
-export async function sendDailyDigest(summary, webhookUrl, siteBaseUrl = "") {
-  if (!webhookUrl) {
-    console.log("No WECHAT_WEBHOOK_URL configured, skipping push.");
+import nodemailer from "nodemailer";
+
+export async function sendDailyDigest(summary, siteBaseUrl = "") {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_TO } = process.env;
+
+  if (!SMTP_USER || !SMTP_PASS) {
+    console.log("No SMTP credentials configured, skipping email push.");
     return;
   }
 
-  const lines = [
-    `## 申论素材日报 — ${summary.date}`,
-    "",
-    `今日收录 **${summary.articleCount}** 篇文章，覆盖 **${summary.categoryCount}** 个主题：`,
-    "",
-  ];
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST || "smtp.qq.com",
+    port: parseInt(SMTP_PORT || "465"),
+    secure: true,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  });
 
+  // Build category breakdown
+  let categoryHtml = "";
   for (const [cat, count] of Object.entries(summary.byCategory)) {
-    lines.push(`- ${cat}: **${count}** 篇`);
+    categoryHtml += `<li>${cat}: <strong>${count}</strong> 篇</li>`;
   }
 
-  lines.push("");
+  const linkHtml = siteBaseUrl
+    ? `<p style="margin-top:24px;"><a href="${siteBaseUrl}/daily/${summary.date}" style="color:#2563eb;">查看完整日报</a></p>`
+    : "";
 
-  if (siteBaseUrl) {
-    const linkLine = `[查看完整日报](${siteBaseUrl}/daily/${summary.date})`;
-    lines.push(linkLine);
-  }
-
-  // Truncate safely: cut at last complete line to avoid breaking markdown
-  let content = lines.join("\n");
-  if (content.length > 4096) {
-    content = content.slice(0, 4096);
-    const lastNewline = content.lastIndexOf("\n");
-    if (lastNewline > 0) {
-      content = content.slice(0, lastNewline);
-    }
-    content += "\n\n...(内容已截断)";
-  }
-
-  const payload = {
-    msgtype: "markdown",
-    markdown: { content },
-  };
+  const html = `
+<div style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafafa;padding:32px;border-radius:12px;">
+  <h2 style="color:#1e293b;margin:0 0 4px;">申论素材日报 — ${summary.date}</h2>
+  <p style="color:#64748b;margin:0 0 24px;">今日收录 <strong>${summary.articleCount}</strong> 篇文章，覆盖 <strong>${summary.categoryCount}</strong> 个主题</p>
+  <ul style="color:#334155;padding-left:20px;line-height:1.8;">
+    ${categoryHtml}
+  </ul>
+  ${linkHtml}
+</div>`;
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    const response = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
+    await transporter.sendMail({
+      from: SMTP_USER,
+      to: SMTP_TO || SMTP_USER,
+      subject: `申论素材日报 — ${summary.date}`,
+      html,
     });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      console.error(`WeChat push failed (HTTP ${response.status})`);
-      return;
-    }
-
-    const result = await response.json();
-    if (result.errcode !== 0) {
-      console.error("WeChat push error:", result.errmsg || result.errcode);
-    } else {
-      console.log("WeChat push sent successfully.");
-    }
+    console.log("Email sent successfully.");
   } catch (err) {
-    console.error("WeChat push failed:", err.message);
+    console.error("Email send failed:", err.message);
   }
 }
