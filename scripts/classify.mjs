@@ -52,6 +52,10 @@ export async function classifyArticle(article, categories) {
   });
 
   const raw = response.choices[0].message.content;
+  if (!raw) {
+    throw new Error("OpenAI returned null content (possible content filter trigger)");
+  }
+
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -59,7 +63,11 @@ export async function classifyArticle(article, categories) {
     // Retry by extracting JSON from markdown code block if present
     const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (match) {
-      parsed = JSON.parse(match[1].trim());
+      try {
+        parsed = JSON.parse(match[1].trim());
+      } catch {
+        throw new Error(`Failed to parse JSON from markdown block: ${match[1].trim().slice(0, 200)}`);
+      }
     } else {
       throw new Error(`Failed to parse OpenAI response as JSON: ${raw.slice(0, 200)}`);
     }
