@@ -18,31 +18,51 @@ export async function sendDailyDigest(summary, webhookUrl, siteBaseUrl = "") {
   lines.push("");
 
   if (siteBaseUrl) {
-    lines.push(`[查看完整日报](${siteBaseUrl}/daily/${summary.date})`);
+    const linkLine = `[查看完整日报](${siteBaseUrl}/daily/${summary.date})`;
+    lines.push(linkLine);
   }
 
-  const content = lines.join("\n").slice(0, 4096);
+  // Truncate safely: cut at last complete line to avoid breaking markdown
+  let content = lines.join("\n");
+  if (content.length > 4096) {
+    content = content.slice(0, 4096);
+    const lastNewline = content.lastIndexOf("\n");
+    if (lastNewline > 0) {
+      content = content.slice(0, lastNewline);
+    }
+    content += "\n\n...(内容已截断)";
+  }
 
   const payload = {
     msgtype: "markdown",
     markdown: { content },
   };
 
-  const response = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
-  if (!response.ok) {
-    console.error(`WeChat push failed (${response.status}):`, await response.text());
-    return;
-  }
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
 
-  const result = await response.json();
-  if (result.errcode !== 0) {
-    console.error("WeChat push error:", result);
-  } else {
-    console.log("WeChat push sent successfully.");
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.error(`WeChat push failed (HTTP ${response.status})`);
+      return;
+    }
+
+    const result = await response.json();
+    if (result.errcode !== 0) {
+      console.error("WeChat push error:", result.errmsg || result.errcode);
+    } else {
+      console.log("WeChat push sent successfully.");
+    }
+  } catch (err) {
+    console.error("WeChat push failed:", err.message);
   }
 }
