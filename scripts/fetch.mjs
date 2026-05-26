@@ -29,6 +29,10 @@ function extractDateFromUrl(url) {
   return null;
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function fetchHtml(url) {
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; ShenlunBot/1.0)" },
@@ -39,12 +43,13 @@ async function fetchHtml(url) {
   return cheerio.load(html);
 }
 
-// --- Site-specific scrapers ---
+// --- Site-specific list page scrapers ---
+// Each returns [{ title, url, pubDate, summary? }]
 
-async function scrapePeopleOpinion($) {
+function scrapePeople($, base, prefix) {
   const articles = [];
   const seen = new Set();
-  $("a[href*='/n1/']").each((_, el) => {
+  $(`a[href*='/n1/']`).each((_, el) => {
     const $a = $(el);
     let href = $a.attr("href");
     if (!href || seen.has(href)) return;
@@ -53,35 +58,15 @@ async function scrapePeopleOpinion($) {
     const dateStr = extractDateFromUrl(href);
     if (!dateStr) return;
     if (!href.startsWith("http")) {
-      href = "http://opinion.people.com.cn" + href;
+      href = (prefix || base) + href;
     }
     seen.add(href);
-    articles.push({ title, url: href, pubDate: dateStr });
+    articles.push({ title, url: href, pubDate: dateStr, summary: "" });
   });
   return articles;
 }
 
-async function scrapePeoplePolitics($) {
-  const articles = [];
-  const seen = new Set();
-  $("a[href*='/n1/']").each((_, el) => {
-    const $a = $(el);
-    let href = $a.attr("href");
-    if (!href || seen.has(href)) return;
-    const title = ($a.attr("title") || $a.text()).trim();
-    if (!title || title.length < 5) return;
-    const dateStr = extractDateFromUrl(href);
-    if (!dateStr) return;
-    if (!href.startsWith("http")) {
-      href = "http://politics.people.com.cn" + href;
-    }
-    seen.add(href);
-    articles.push({ title, url: href, pubDate: dateStr });
-  });
-  return articles;
-}
-
-async function scrapeXinhuaPolitics($) {
+function scrapeNewsList($) {
   const articles = [];
   const seen = new Set();
   $("a[href]").each((_, el) => {
@@ -90,67 +75,40 @@ async function scrapeXinhuaPolitics($) {
     if (!href || seen.has(href)) return;
     const dateStr = extractDateFromUrl(href);
     if (!dateStr) return;
-    const title = ($a.text() || $a.attr("title")).trim();
+    const title = ($a.attr("title") || $a.text()).trim();
     if (!title || title.length < 5) return;
     if (href.startsWith("//")) href = "https:" + href;
     if (!href.startsWith("http")) {
       href = "https://www.news.cn" + (href.startsWith("/") ? "" : "/") + href;
     }
     seen.add(href);
-    articles.push({ title, url: href, pubDate: dateStr });
+    articles.push({ title, url: href, pubDate: dateStr, summary: "" });
   });
   return articles;
 }
-
-async function scrapeQstheory($) {
-  const articles = [];
-  const seen = new Set();
-  $("a[href*='/']").each((_, el) => {
-    const $a = $(el);
-    let href = $a.attr("href");
-    if (!href || seen.has(href)) return;
-    const dateStr = extractDateFromUrl(href);
-    if (!dateStr) return;
-    const title = ($a.attr("title") || $a.text()).trim();
-    if (!title || title.length < 5) return;
-    if (!href.startsWith("http")) {
-      href = "http://www.qstheory.cn" + (href.startsWith("/") ? "" : "/") + href;
-    }
-    seen.add(href);
-    articles.push({ title, url: href, pubDate: dateStr });
-  });
-  return articles;
-}
-
-// Map hostname patterns to scrapers
-const SCRAPERS = [
-  { pattern: /opinion\.people/, fn: scrapePeopleOpinion },
-  { pattern: /politics\.people/, fn: scrapePeoplePolitics },
-  { pattern: /people\.com\.cn/, fn: scrapePeoplePolitics },
-  { pattern: /news\.cn|news\.xinhuanet|xinhuanet\.com/, fn: scrapeXinhuaPolitics },
-  { pattern: /qstheory/, fn: scrapeQstheory },
-];
 
 function getScraper(url) {
-  for (const s of SCRAPERS) {
-    if (s.pattern.test(url)) return s.fn;
-  }
+  if (/opinion\.people/.test(url)) return ($) => scrapePeople($, "http://opinion.people.com.cn", "http://opinion.people.com.cn");
+  if (/politics\.people/.test(url)) return ($) => scrapePeople($, "http://politics.people.com.cn", "http://politics.people.com.cn");
+  if (/people\.com\.cn/.test(url)) return ($) => scrapePeople($, url, null);
+  if (/news\.cn|news\.xinhuanet|xinhuanet/.test(url)) return scrapeNewsList;
+  if (/qstheory/.test(url)) return ($) => scrapePeople($, "http://www.qstheory.cn", null);
   return null;
 }
 
-// --- Article content extraction ---
+// --- Article content extraction (with delay to avoid rate limiting) ---
 
 async function fetchArticleContent(url) {
   try {
+    await sleep(3000); // 3s delay between requests
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; ShenlunBot/1.0)" },
       signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) return "";
     const html = await res.text();
     const $ = cheerio.load(html);
 
-    // Try common content selectors for Chinese news sites
     const selectors = [
       "#rwb_zw", ".text_show", ".box_con", ".article-content",
       ".content", "#article-content", ".post_content", ".art_context",
@@ -161,9 +119,7 @@ async function fetchArticleContent(url) {
       if (text && text.length > 200) return text.replace(/\s+/g, " ").trim();
     }
 
-    // Fallback: grab all <p> tags
-    const paras = $("p").map((_, el) => $(el).text().trim()).get()
-      .filter(t => t.length > 20);
+    const paras = $("p").map((_, el) => $(el).text().trim()).get().filter(t => t.length > 20);
     if (paras.length) return paras.join("\n").replace(/\s+/g, " ").trim();
 
     return "";
@@ -183,12 +139,12 @@ export async function fetchArticles(feeds) {
     if (feed.enabled === false) continue;
     const scraper = getScraper(feed.url);
     if (!scraper) {
-      console.error(`No scraper for ${feed.name} (${feed.url})`);
+      console.error(`No scraper for ${feed.name}`);
       continue;
     }
 
     try {
-      console.log(`  Scraping ${feed.name}...`);
+      console.log(`Scraping ${feed.name}...`);
       const $ = await fetchHtml(feed.url);
       const found = await scraper($);
 
@@ -198,21 +154,23 @@ export async function fetchArticles(feeds) {
         if (newUrls.has(a.url)) continue;
         if (!isWithinLast24Hours(a.pubDate)) continue;
 
-        // Fetch full article content
+        // Fetch full article content (with delay)
         const content = await fetchArticleContent(a.url);
-        if (!content) continue;
 
         articles.push({
           title: a.title,
           url: a.url,
           source: feed.name,
-          content,
+          content: content || a.summary,
           pubDate: a.pubDate,
         });
         newUrls.add(a.url);
         added++;
+
+        // Stop after 15 articles per source to avoid rate limiting
+        if (added >= 15) break;
       }
-      console.log(`  ${feed.name}: ${added} new articles`);
+      console.log(`  ${feed.name}: ${added} articles`);
     } catch (err) {
       console.error(`Failed to fetch ${feed.name}:`, err.message);
     }
