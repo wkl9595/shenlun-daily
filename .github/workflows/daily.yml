@@ -1,0 +1,28 @@
+name: Daily Shenlun Pipeline
+
+on:
+  schedule:
+    - cron: "0 1 * * *"  # UTC 1:00 = 北京时间 9:00
+  workflow_dispatch:       # Manual trigger for testing
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run daily pipeline
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL }}
+          SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
+          CI: "true"
+        run: node scripts/daily.mjs
