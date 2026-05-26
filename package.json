@@ -1,0 +1,16 @@
+{
+  "name": "shenlun-tool",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "daily": "node scripts/daily.mjs",
+    "dev": "vitepress dev docs",
+    "build": "vitepress build docs",
+    "preview": "vitepress preview docs"
+  },
+  "dependencies": {
+    "openai": "^4.73.0",
+    "rss-parser": "^3.13.0",
+    "vitepress": "^1.5.0"
+  }
+}

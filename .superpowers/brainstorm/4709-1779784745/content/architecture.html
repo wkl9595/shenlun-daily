@@ -1,0 +1,82 @@
+<h2>System Architecture</h2>
+<p class="subtitle">Daily pipeline: RSS → AI processing → static site → WeChat push</p>
+
+<div class="section">
+  <h3>Pipeline Overview</h3>
+  <div style="background: var(--bg-secondary); border-radius: 12px; padding: 32px; font-family: monospace; font-size: 13px; line-height: 1.8;">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+      <div style="background: #3b82f6; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600;">📡 RSS Feeds</div>
+      <span style="font-size: 20px;">→</span>
+      <div style="background: #8b5cf6; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600;">🤖 CLI Script</div>
+      <span style="font-size: 20px;">→</span>
+      <div style="background: #ec4899; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600;">🧠 OpenAI</div>
+      <span style="font-size: 20px;">→</span>
+      <div style="background: #10b981; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600;">📄 Markdown</div>
+      <span style="font-size: 20px;">→</span>
+      <div style="background: #f59e0b; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600;">📱 WeChat</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px;">
+      <div style="border: 1px solid var(--border); border-radius: 8px; padding: 20px;">
+        <div style="font-weight: 700; color: #3b82f6; margin-bottom: 12px;">Phase 1 — Fetch</div>
+        <div style="color: var(--text-secondary);">
+          • Cron triggers daily at 8am<br>
+          • Read RSS feeds: 人民日报, 新华日报, 求是, etc.<br>
+          • Compare with already-fetched URLs<br>
+          • Deduplicate & filter to last 24h
+        </div>
+      </div>
+      <div style="border: 1px solid var(--border); border-radius: 8px; padding: 20px;">
+        <div style="font-weight: 700; color: #8b5cf6; margin-bottom: 12px;">Phase 2 — Classify</div>
+        <div style="color: var(--text-secondary);">
+          • Send article to OpenAI GPT-4o-mini<br>
+          • Match against preset categories<br>
+          • Suggest new sub-categories if needed<br>
+          • Extract 3-5 key sentences per article
+        </div>
+      </div>
+      <div style="border: 1px solid var(--border); border-radius: 8px; padding: 20px;">
+        <div style="font-weight: 700; color: #ec4899; margin-bottom: 12px;">Phase 3 — Generate</div>
+        <div style="color: var(--text-secondary);">
+          • Write markdown to content/<br>
+          • Generate category index pages<br>
+          • Build daily digest markdown<br>
+          • Commit + push to git repo
+        </div>
+      </div>
+      <div style="border: 1px solid var(--border); border-radius: 8px; padding: 20px;">
+        <div style="font-weight: 700; color: #f59e0b; margin-bottom: 12px;">Phase 4 — Deliver</div>
+        <div style="color: var(--text-secondary);">
+          • Vercel auto-deploys on push<br>
+          • Send WeChat bot message<br>
+          • Summary: "今日收录X篇文章，分类Y个主题"<br>
+          • Link to daily digest page
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Key Design Decisions</h3>
+  <div style="border: 1px solid var(--border); border-radius: 8px; padding: 20px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 8px 0; font-weight: 600; width: 180px;">No database</td>
+        <td style="padding: 8px 0; color: var(--text-secondary);">Markdown files + frontmatter = all storage. Git history = audit trail.</td>
+      </tr>
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 8px 0; font-weight: 600;">No API server</td>
+        <td style="padding: 8px 0; color: var(--text-secondary);">VitePress SSG generates the entire site at build time. No runtime.</td>
+      </tr>
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 8px 0; font-weight: 600;">OpenAI gpt-4o-mini</td>
+        <td style="padding: 8px 0; color: var(--text-secondary);">Cheap & fast for classification + extraction. ~$0.01/day of article processing.</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; font-weight: 600;">WeChat Webhook</td>
+        <td style="padding: 8px 0; color: var(--text-secondary);">Simple POST to bot webhook with markdown-formatted digest.</td>
+      </tr>
+    </table>
+  </div>
+</div>
